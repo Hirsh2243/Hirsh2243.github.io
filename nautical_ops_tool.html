@@ -4,214 +4,65 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautical Operations Tool</title>
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css"/>
-    
-    <!-- Leaflet Draw CSS -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css"/>
-    
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body { font-family: Arial, sans-serif; }
-        
-        #map { 
-            height: calc(100vh - 60px); 
-            width: 100%;
-        }
-        
-        .header {
-            background-color: #2c3e50;
-            color: white;
-            padding: 15px;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        
-        .controls-panel {
-            position: absolute;
-            top: 80px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px;
-            border-radius: 5px;
-            z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-        }
-        
-        .controls-panel h3 {
-            margin-bottom: 10px;
-            font-size: 16px;
-        }
-        
-        button {
-            display: block;
-            width: 100%;
-            margin: 5px 0;
-            padding: 8px 12px;
-            background-color: #3498db;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        
-        button:hover {
-            background-color: #2980b9;
-        }
-        
-        button.danger {
-            background-color: #e74c3c;
-        }
-        
-        button.danger:hover {
-            background-color: #c0392b;
-        }
-        
-        #marineTrafficFrame {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            width: 400px;
-            height: 300px;
-            border: 2px solid #2c3e50;
-            border-radius: 5px;
-            display: none;
-            z-index: 999;
-            background: white;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
 </head>
 <body>
-
-    <div class="header">⚓ Nautical Operations Tool</div>
-    
+    <h1>Nautical Operations Tool</h1>
     <div id="map"></div>
-    
-    <div class="controls-panel">
-        <h3>Operations</h3>
-        <button onclick="toggleMarineTraffic()">📡 Toggle MarineTraffic</button>
-        <button onclick="clearAllMarkers()" class="danger">🗑️ Clear Markers</button>
-        <p style="font-size: 12px; margin-top: 10px; color: #555;">
-            Click on map to add markers<br>
-            Right-click to delete markers
-        </p>
-    </div>
-    
-    <iframe id="marineTrafficFrame" 
-            src="https://www.marinetraffic.com/en/ais/embed">
-    </iframe>
-
-    <!-- Leaflet JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
-    
-    <!-- Leaflet Draw JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
     <script>
-        // Initialize map centered on San Francisco Bay
+        // Initialize map
         const map = L.map('map').setView([37.7749, -122.4194], 10);
-
-        // Base layer - OpenStreetMap
-        const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
 
-        // Nautical overlay - OpenSeaMap
-        const seamarkLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-            maxZoom: 18,
-            attribution: '© OpenSeaMap contributors'
-        }).addTo(map);
-
-        // Layer control
-        L.control.layers(
-            { "OpenStreetMap": baseLayer },
-            { "Sea Marks": seamarkLayer }
-        ).addTo(map);
-
-        // Marker management
-        let markers = [];
-
-        function saveMarkers() {
-            const markerData = markers.map(m => ({
-                lat: m.getLatLng().lat,
-                lng: m.getLatLng().lng
-            }));
-            localStorage.setItem('nauticleMarkers', JSON.stringify(markerData));
-        }
-
-        function loadMarkers() {
-            const saved = JSON.parse(localStorage.getItem('nauticleMarkers') || '[]');
-            saved.forEach(pos => createMarker(pos.lat, pos.lng));
-        }
-
-        function createMarker(lat, lng) {
-            const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-            marker.bindPopup(`<b>Marker</b><br>Lat: ${lat.toFixed(4)}<br>Lng: ${lng.toFixed(4)}`);
-            
-            marker.on('dragend', saveMarkers);
-            marker.on('contextmenu', (e) => {
-                map.removeLayer(marker);
-                markers = markers.filter(m => m !== marker);
-                saveMarkers();
-            });
-            
-            markers.push(marker);
-        }
-
-        function clearAllMarkers() {
-            markers.forEach(m => map.removeLayer(m));
-            markers = [];
-            saveMarkers();
-        }
-
-        // Map click to add markers
-        map.on('click', (e) => {
-            createMarker(e.latlng.lat, e.latlng.lng);
-            saveMarkers();
+        // Custom marker icons
+        const distressIcon = L.icon({
+            iconUrl: 'images/distress.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
         });
 
-        // Load saved markers on page load
-        loadMarkers();
-
-        // Drawing tools for routes and zones
-        const drawnItems = new L.FeatureGroup();
-        map.addLayer(drawnItems);
-
-        const drawControl = new L.Control.Draw({
-            edit: {
-                featureGroup: drawnItems
-            },
-            draw: {
-                polygon: true,
-                polyline: true,
-                rectangle: true,
-                circle: false,
-                marker: false
-            }
-        });
-        map.addControl(drawControl);
-
-        map.on(L.Draw.Event.CREATED, function(event) {
-            const layer = event.layer;
-            drawnItems.addLayer(layer);
+        const fireIcon = L.icon({
+            iconUrl: 'images/fire.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
         });
 
-        map.on(L.Draw.Event.EDITED, function(event) {
-            console.log('Shapes edited');
+        const waterIcon = L.icon({
+            iconUrl: 'images/water.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
         });
 
-        // MarineTraffic toggle
-        function toggleMarineTraffic() {
-            const frame = document.getElementById('marineTrafficFrame');
-            frame.style.display = frame.style.display === 'none' ? 'block' : 'none';
-        }
+        const trainingIcon = L.icon({
+            iconUrl: 'images/training.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34]
+        });
 
-        console.log('Nautical Operations Tool loaded successfully!');
+        // Add markers for maritime events
+        const vesselsInDistress = L.marker([37.7749, -122.4194], {icon: distressIcon}).addTo(map).bindPopup('Vessel in distress.');
+        const vesselsOnFire = L.marker([37.7740, -122.4294], {icon: fireIcon}).addTo(map).bindPopup('Vessel on fire.');
+        const vesselsTakingOnWater = L.marker([37.7800, -122.4180], {icon: waterIcon}).addTo(map).bindPopup('Vessel taking on water.');
+        const trainingAssets = L.marker([37.7760, -122.4185], {icon: trainingIcon}).addTo(map).bindPopup('USCG training assets.');
+
+        // Legend
+        const legend = L.control({position: 'bottomright'});
+        legend.onAdd = function () {
+            const div = L.DomUtil.create('div', 'info legend');
+            div.innerHTML += '<i style="background: red;"></i> Vessels in distress<br>';
+            div.innerHTML += '<i style="background: orange;"></i> Vessels on fire<br>';
+            div.innerHTML += '<i style="background: blue;"></i> Vessels taking on water<br>';
+            div.innerHTML += '<i style="background: green;"></i> USCG training assets<br>';
+            return div;
+        };
+        legend.addTo(map);
     </script>
-
 </body>
 </html>
