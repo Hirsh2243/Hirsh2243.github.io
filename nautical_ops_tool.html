@@ -4,59 +4,363 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautical Operations Tool</title>
+    
+    <!-- Leaflet CSS for map -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body { 
             font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            position: relative;
+            background-color: #f0f2f5;
         }
-        #operations-panel {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 10px;
             padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #f9f9f9;
+        }
+        
+        #map {
+            flex: 2;
+            border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
+        
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+        
+        #operations-panel {
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        
+        #operations-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
         .coordinate-input {
-            margin: 10px 0;
+            margin: 12px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .coordinate-input label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 12px;
+        }
+        
+        .coordinate-input input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        #chart-panel {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            flex: 1;
+            min-height: 300px;
+        }
+        
+        #chart-panel h3 {
+            font-size: 16px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        #eventChart {
+            max-height: 250px;
+        }
+        
+        .event-stats {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .stat-value {
+            color: #4CAF50;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>Nautical Operations Tool</h1>
-    <div id="operations-panel">
-        <h2>Input Maritime Event Coordinates</h2>
-        <div class="coordinate-input">
-            <label for="distress">Distress Coordinates:</label>
-            <input type="text" id="distress" placeholder="Latitude, Longitude">
+    <div class="container">
+        <div id="map"></div>
+        <div class="right-panel">
+            <div id="operations-panel">
+                <h2>Input Maritime Event Coordinates</h2>
+                <div class="coordinate-input">
+                    <label for="distress">Distress Coordinates:</label>
+                    <input type="text" id="distress" placeholder="e.g., 40.7128, -74.0060">
+                </div>
+                <div class="coordinate-input">
+                    <label for="fire">Fire Coordinates:</label>
+                    <input type="text" id="fire" placeholder="e.g., 40.7128, -74.0060">
+                </div>
+                <div class="coordinate-input">
+                    <label for="water">Water Coordinates:</label>
+                    <input type="text" id="water" placeholder="e.g., 40.7128, -74.0060">
+                </div>
+                <div class="coordinate-input">
+                    <label for="training">Training Coordinates:</label>
+                    <input type="text" id="training" placeholder="e.g., 40.7128, -74.0060">
+                </div>
+                <button onclick="createMarker()">Create Marker</button>
+            </div>
+            
+            <div id="chart-panel">
+                <h3>Event Distribution</h3>
+                <canvas id="eventChart"></canvas>
+            </div>
+            
+            <div class="event-stats">
+                <h3>Statistics</h3>
+                <div class="stat-item">
+                    <span class="stat-label">Total Events:</span>
+                    <span class="stat-value" id="totalEvents">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Distress:</span>
+                    <span class="stat-value" id="distressCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Fire:</span>
+                    <span class="stat-value" id="fireCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Water:</span>
+                    <span class="stat-value" id="waterCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Training:</span>
+                    <span class="stat-value" id="trainingCount">0</span>
+                </div>
+            </div>
         </div>
-        <div class="coordinate-input">
-            <label for="fire">Fire Coordinates:</label>
-            <input type="text" id="fire" placeholder="Latitude, Longitude">
-        </div>
-        <div class="coordinate-input">
-            <label for="water">Water Coordinates:</label>
-            <input type="text" id="water" placeholder="Latitude, Longitude">
-        </div>
-        <div class="coordinate-input">
-            <label for="training">Training Coordinates:</label>
-            <input type="text" id="training" placeholder="Latitude, Longitude">
-        </div>
-        <button onclick="createMarker()">Create Marker</button>
     </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    
     <script>
+        // Initialize map
+        const map = L.map('map').setView([40.7128, -74.0060], 4);
+        
+        // Add map tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Event counters and markers storage
+        const events = {
+            distress: [],
+            fire: [],
+            water: [],
+            training: []
+        };
+        
+        const markerIcons = {
+            distress: L.divIcon({ className: 'distress-marker', html: '🚨', iconSize: [32, 32] }),
+            fire: L.divIcon({ className: 'fire-marker', html: '🔥', iconSize: [32, 32] }),
+            water: L.divIcon({ className: 'water-marker', html: '💧', iconSize: [32, 32] }),
+            training: L.divIcon({ className: 'training-marker', html: '📚', iconSize: [32, 32] })
+        };
+        
+        let chart = null;
+        
         function createMarker() {
-            // Functionality for creating markers based on input coordinates
             const distressCoords = document.getElementById('distress').value;
             const fireCoords = document.getElementById('fire').value;
             const waterCoords = document.getElementById('water').value;
             const trainingCoords = document.getElementById('training').value;
-            // Add marker creation logic here
-            console.log('Markers created at:', distressCoords, fireCoords, waterCoords, trainingCoords);
+            
+            // Parse and create markers
+            if (distressCoords) {
+                addMarker(distressCoords, 'distress', '🚨 Distress');
+            }
+            if (fireCoords) {
+                addMarker(fireCoords, 'fire', '🔥 Fire');
+            }
+            if (waterCoords) {
+                addMarker(waterCoords, 'water', '💧 Water');
+            }
+            if (trainingCoords) {
+                addMarker(trainingCoords, 'training', '📚 Training');
+            }
+            
+            // Clear inputs
+            document.getElementById('distress').value = '';
+            document.getElementById('fire').value = '';
+            document.getElementById('water').value = '';
+            document.getElementById('training').value = '';
+            
+            // Update statistics and chart
+            updateStats();
+            updateChart();
         }
+        
+        function addMarker(coordString, type, label) {
+            try {
+                const [lat, lng] = coordString.split(',').map(c => parseFloat(c.trim()));
+                
+                if (isNaN(lat) || isNaN(lng)) {
+                    alert('Invalid coordinates. Please use format: latitude, longitude');
+                    return;
+                }
+                
+                const marker = L.marker([lat, lng], { 
+                    icon: markerIcons[type],
+                    title: label
+                }).addTo(map).bindPopup(`<b>${label}</b><br>Lat: ${lat}<br>Lng: ${lng}`);
+                
+                events[type].push({ lat, lng, marker });
+                console.log(`${label} marker created at:`, lat, lng);
+                
+            } catch (error) {
+                alert('Error parsing coordinates: ' + error.message);
+            }
+        }
+        
+        function updateStats() {
+            const distressCount = events.distress.length;
+            const fireCount = events.fire.length;
+            const waterCount = events.water.length;
+            const trainingCount = events.training.length;
+            const totalEvents = distressCount + fireCount + waterCount + trainingCount;
+            
+            document.getElementById('totalEvents').textContent = totalEvents;
+            document.getElementById('distressCount').textContent = distressCount;
+            document.getElementById('fireCount').textContent = fireCount;
+            document.getElementById('waterCount').textContent = waterCount;
+            document.getElementById('trainingCount').textContent = trainingCount;
+        }
+        
+        function updateChart() {
+            const ctx = document.getElementById('eventChart').getContext('2d');
+            
+            const data = {
+                labels: ['Distress', 'Fire', 'Water', 'Training'],
+                datasets: [{
+                    label: 'Event Count',
+                    data: [
+                        events.distress.length,
+                        events.fire.length,
+                        events.water.length,
+                        events.training.length
+                    ],
+                    backgroundColor: [
+                        '#FF6B6B',
+                        '#FFA500',
+                        '#4ECDC4',
+                        '#95E1D3'
+                    ],
+                    borderColor: [
+                        '#C92A2A',
+                        '#FF8C00',
+                        '#05A5A3',
+                        '#38B9AA'
+                    ],
+                    borderWidth: 2
+                }]
+            };
+            
+            if (chart) {
+                chart.data = data;
+                chart.update();
+            } else {
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: data,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: Math.max(
+                                    events.distress.length,
+                                    events.fire.length,
+                                    events.water.length,
+                                    events.training.length,
+                                    5
+                                ) + 1
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Initialize chart
+        updateChart();
     </script>
 </body>
 </html>
