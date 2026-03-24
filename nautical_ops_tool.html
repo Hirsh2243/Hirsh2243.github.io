@@ -4,65 +4,59 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautical Operations Tool</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="script.js" defer></script>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            position: relative;
+        }
+        #operations-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .coordinate-input {
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
     <h1>Nautical Operations Tool</h1>
-    <div id="map"></div>
+    <div id="operations-panel">
+        <h2>Input Maritime Event Coordinates</h2>
+        <div class="coordinate-input">
+            <label for="distress">Distress Coordinates:</label>
+            <input type="text" id="distress" placeholder="Latitude, Longitude">
+        </div>
+        <div class="coordinate-input">
+            <label for="fire">Fire Coordinates:</label>
+            <input type="text" id="fire" placeholder="Latitude, Longitude">
+        </div>
+        <div class="coordinate-input">
+            <label for="water">Water Coordinates:</label>
+            <input type="text" id="water" placeholder="Latitude, Longitude">
+        </div>
+        <div class="coordinate-input">
+            <label for="training">Training Coordinates:</label>
+            <input type="text" id="training" placeholder="Latitude, Longitude">
+        </div>
+        <button onclick="createMarker()">Create Marker</button>
+    </div>
     <script>
-        // Initialize map
-        const map = L.map('map').setView([37.7749, -122.4194], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
-
-        // Custom marker icons
-        const distressIcon = L.icon({
-            iconUrl: 'images/distress.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
-        });
-
-        const fireIcon = L.icon({
-            iconUrl: 'images/fire.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
-        });
-
-        const waterIcon = L.icon({
-            iconUrl: 'images/water.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
-        });
-
-        const trainingIcon = L.icon({
-            iconUrl: 'images/training.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34]
-        });
-
-        // Add markers for maritime events
-        const vesselsInDistress = L.marker([37.7749, -122.4194], {icon: distressIcon}).addTo(map).bindPopup('Vessel in distress.');
-        const vesselsOnFire = L.marker([37.7740, -122.4294], {icon: fireIcon}).addTo(map).bindPopup('Vessel on fire.');
-        const vesselsTakingOnWater = L.marker([37.7800, -122.4180], {icon: waterIcon}).addTo(map).bindPopup('Vessel taking on water.');
-        const trainingAssets = L.marker([37.7760, -122.4185], {icon: trainingIcon}).addTo(map).bindPopup('USCG training assets.');
-
-        // Legend
-        const legend = L.control({position: 'bottomright'});
-        legend.onAdd = function () {
-            const div = L.DomUtil.create('div', 'info legend');
-            div.innerHTML += '<i style="background: red;"></i> Vessels in distress<br>';
-            div.innerHTML += '<i style="background: orange;"></i> Vessels on fire<br>';
-            div.innerHTML += '<i style="background: blue;"></i> Vessels taking on water<br>';
-            div.innerHTML += '<i style="background: green;"></i> USCG training assets<br>';
-            return div;
-        };
-        legend.addTo(map);
+        function createMarker() {
+            // Functionality for creating markers based on input coordinates
+            const distressCoords = document.getElementById('distress').value;
+            const fireCoords = document.getElementById('fire').value;
+            const waterCoords = document.getElementById('water').value;
+            const trainingCoords = document.getElementById('training').value;
+            // Add marker creation logic here
+            console.log('Markers created at:', distressCoords, fireCoords, waterCoords, trainingCoords);
+        }
     </script>
 </body>
 </html>
