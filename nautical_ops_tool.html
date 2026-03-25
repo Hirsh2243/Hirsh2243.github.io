@@ -745,12 +745,17 @@
         // Generate realistic weather based on region
         function generateWeatherVariation() {
             const variations = [
-                { tempVariation: -2, windVariation: -3 },
+                { tempVariation: -4, windVariation: -3 },
                 { tempVariation: 0, windVariation: 0 },
-                { tempVariation: 1, windVariation: 2 },
-                { tempVariation: -1, windVariation: 1 },
+                { tempVariation: 2, windVariation: 2 },
+                { tempVariation: -2, windVariation: 1 },
             ];
             return variations[Math.floor(Math.random() * variations.length)];
+        }
+
+        // Convert Celsius to Fahrenheit
+        function celsiusToFahrenheit(celsius) {
+            return Math.round((celsius * 9/5) + 32);
         }
 
         // Fetch Weather data
@@ -758,11 +763,21 @@
             const weatherList = document.getElementById('weatherList');
             const variation = generateWeatherVariation();
             
+            // Celsius temperatures
+            const atlanticTempC = 18 + variation.tempVariation;
+            const gulfTempC = 24 + variation.tempVariation;
+            const pacificTempC = 16 + variation.tempVariation;
+            
+            // Convert to Fahrenheit
+            const atlanticTempF = celsiusToFahrenheit(atlanticTempC);
+            const gulfTempF = celsiusToFahrenheit(gulfTempC);
+            const pacificTempF = celsiusToFahrenheit(pacificTempC);
+            
             const sampleWeather = [
                 { 
                     location: 'Atlantic Sea', 
                     condition: 'Partly Cloudy', 
-                    temp: (18 + variation.tempVariation) + '°C', 
+                    temp: atlanticTempF + '°F', 
                     windSpeed: (12 + variation.windVariation) + ' knots', 
                     windDir: 'NW', 
                     visibility: '10 km', 
@@ -772,7 +787,7 @@
                 { 
                     location: 'Gulf of Mexico', 
                     condition: 'Sunny', 
-                    temp: (24 + variation.tempVariation) + '°C', 
+                    temp: gulfTempF + '°F', 
                     windSpeed: (10 + variation.windVariation) + ' knots', 
                     windDir: 'E', 
                     visibility: '12 km', 
@@ -782,7 +797,7 @@
                 { 
                     location: 'Pacific Sea', 
                     condition: 'Rainy', 
-                    temp: (16 + variation.tempVariation) + '°C', 
+                    temp: pacificTempF + '°F', 
                     windSpeed: (16 + variation.windVariation) + ' knots', 
                     windDir: 'W', 
                     visibility: '6 km', 
