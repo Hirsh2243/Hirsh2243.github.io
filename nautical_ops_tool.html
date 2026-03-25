@@ -44,10 +44,6 @@
         .leaflet-control-layers-toggle {
             width: 36px !important;
             height: 36px !important;
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><g><path d="M5 5h14M5 12h14M5 19h14"/></g></svg>') !important;
-            background-size: 20px 20px !important;
-            background-repeat: no-repeat !important;
-            background-position: center !important;
         }
 
         .leaflet-control-layers label {
@@ -568,57 +564,63 @@
         // Initialize map
         const map = L.map('map').setView([40.7128, -74.0060], 4);
         
-        // Define multiple base layers
+        // Define base layer
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        });
+        
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri',
+            maxZoom: 18
+        });
+
+        const terrainLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors',
+            maxZoom: 18
+        });
+
+        const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        });
+
+        const noaaLayer = L.tileLayer('https://gis.charttools.noaa.gov/arcgis/rest/services/ENC/NOAAENCOnline/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'NOAA',
+            maxZoom: 16
+        });
+
+        // OpenSeaMap (Nautical overlay - separate)
+        const seaMapLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+            attribution: '© OpenSeaMap contributors',
+            maxZoom: 18
+        });
+
+        // Create layer group for OpenSeaMap with OSM base
+        const openSeaMapGroup = L.layerGroup([osmLayer, seaMapLayer]);
+
+        // Define base layers object
         const baseLayers = {
-            'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19,
-                name: 'OpenStreetMap'
-            }),
-            'OpenSeaMap (Nautical)': L.tileLayer('https://tiles.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap',
-                maxZoom: 19
-            }).addLayer(L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
-                attribution: '© OpenSeaMap contributors',
-                maxZoom: 18,
-                opacity: 0.8
-            })),
-            'Satellite (Esri)': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri',
-                maxZoom: 18,
-                name: 'Satellite'
-            }),
-            'Terrain (Stamen)': L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors',
-                maxZoom: 18,
-                name: 'Terrain'
-            }),
-            'Dark Map': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19,
-                name: 'Dark'
-            }),
-            'NOAA Charts (US)': L.tileLayer('https://gis.charttools.noaa.gov/arcgis/rest/services/ENC/NOAAENCOnline/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'NOAA',
-                maxZoom: 16,
-                name: 'NOAA'
-            })
+            'OpenStreetMap': osmLayer,
+            'OpenSeaMap + OSM': openSeaMapGroup,
+            'Satellite': satelliteLayer,
+            'Terrain': terrainLayer,
+            'Dark Map': darkLayer,
+            'NOAA Charts (US)': noaaLayer
         };
 
-        // Add default layer (OpenSeaMap - Nautical)
-        baseLayers['OpenSeaMap (Nautical)'].addTo(map);
+        // Add default layer
+        osmLayer.addTo(map);
 
         // Add layer control
         L.control.layers(baseLayers, null, {
             position: 'topleft',
-            collapsed: true
+            collapsed: false
         }).addTo(map);
         
         // Store all markers with custom labels
         let markers = [];
         let markerIdCounter = 0;
-        let trafficData = [];
-        let weatherData = [];
         let logEntries = [];
         
         // Event counters
