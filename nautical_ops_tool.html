@@ -38,7 +38,33 @@
             display: flex;
             flex-direction: column;
             gap: 10px;
-            overflow-y: auto;
+            overflow-y: scroll;
+            padding-right: 10px;
+        }
+
+        /* Custom scrollbar styling */
+        .right-panel::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .right-panel::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 10px;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb:hover {
+            background: #45a049;
+        }
+
+        /* Firefox scrollbar */
+        .right-panel {
+            scrollbar-color: #4CAF50 #f1f1f1;
+            scrollbar-width: thin;
         }
         
         #operations-panel {
@@ -47,6 +73,7 @@
             background-color: #fff;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
+            flex-shrink: 0;
         }
         
         #operations-panel h2 {
@@ -107,6 +134,7 @@
             border: 1px solid #ddd;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
+            flex-shrink: 0;
         }
         
         .stat-item {
@@ -138,6 +166,7 @@
             border-radius: 8px;
             max-height: 200px;
             overflow-y: auto;
+            flex-shrink: 0;
         }
 
         .markers-list h3 {
@@ -173,6 +202,7 @@
             border-radius: 8px;
             max-height: 200px;
             overflow-y: auto;
+            flex-shrink: 0;
         }
 
         #marine-traffic h3 {
@@ -231,6 +261,7 @@
             border-radius: 8px;
             max-height: 250px;
             overflow-y: auto;
+            flex-shrink: 0;
         }
 
         #weather-panel h3 {
@@ -283,9 +314,10 @@
             border: 1px solid #ddd;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
-            flex: 1;
+            min-height: 300px;
             display: flex;
             flex-direction: column;
+            flex-shrink: 0;
         }
 
         #log-panel h3 {
@@ -298,6 +330,7 @@
             display: flex;
             gap: 8px;
             margin-bottom: 10px;
+            flex-shrink: 0;
         }
 
         .log-input-section input {
@@ -312,6 +345,7 @@
             padding: 8px 12px;
             margin-top: 0;
             font-size: 11px;
+            flex-shrink: 0;
         }
 
         .log-table {
@@ -321,6 +355,7 @@
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0;
         }
 
         .log-header {
@@ -332,6 +367,7 @@
             font-size: 11px;
             padding: 8px;
             border-bottom: 1px solid #ddd;
+            flex-shrink: 0;
         }
 
         .log-header div {
@@ -343,6 +379,25 @@
             flex: 1;
             overflow-y: auto;
             background-color: #f9f9f9;
+            min-height: 0;
+        }
+
+        /* Custom scrollbar for log entries */
+        .log-entries::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-entries::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .log-entries::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 5px;
+        }
+
+        .log-entries::-webkit-scrollbar-thumb:hover {
+            background: #45a049;
         }
 
         .log-entry {
@@ -352,6 +407,7 @@
             padding: 8px;
             font-size: 10px;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .log-entry:hover {
