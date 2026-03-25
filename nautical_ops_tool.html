@@ -166,53 +166,30 @@
         }
 
         #marine-traffic {
-            padding: 15px;
+            padding: 0;
             background-color: #fff;
             border: 1px solid #ddd;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
-            max-height: 250px;
-            overflow-y: auto;
             flex: 1;
+            min-height: 250px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         #marine-traffic h3 {
             font-size: 14px;
-            margin-bottom: 10px;
+            padding: 15px 15px 10px 15px;
+            margin: 0;
             color: #333;
+            border-bottom: 1px solid #eee;
         }
 
-        .traffic-item {
-            padding: 10px;
-            margin-bottom: 8px;
-            background-color: #f0f8ff;
-            border-left: 3px solid #2196F3;
-            border-radius: 4px;
-            font-size: 11px;
-        }
-
-        .traffic-vessel {
-            font-weight: bold;
-            color: #0066cc;
-        }
-
-        .traffic-details {
-            color: #666;
-            font-size: 10px;
-            margin-top: 3px;
-        }
-
-        .traffic-timestamp {
-            color: #999;
-            font-size: 9px;
-            margin-top: 3px;
-        }
-
-        .no-traffic {
-            color: #999;
-            font-style: italic;
-            text-align: center;
-            padding: 20px 10px;
+        #traffic-iframe {
+            flex: 1;
+            border: none;
+            border-radius: 0 0 8px 8px;
         }
     </style>
 </head>
@@ -281,8 +258,8 @@
             </div>
 
             <div id="marine-traffic">
-                <h3>🚢 Marine Traffic</h3>
-                <div id="trafficList" class="no-traffic">No traffic data available</div>
+                <h3>🚢 Marine Traffic (AIS)</h3>
+                <iframe id="traffic-iframe" src="https://www.marinetraffic.com/en/ais/home/centerx:-12.0/centery:25.0/zoom:4" allow="geolocation"></iframe>
             </div>
         </div>
     </div>
@@ -303,9 +280,6 @@
         // Store all markers with custom labels
         let markers = [];
         let markerIdCounter = 0;
-        
-        // Marine traffic data
-        let trafficData = [];
         
         // Event counters
         const events = {
@@ -478,58 +452,10 @@
             document.getElementById('waterCount').textContent = events.water;
             document.getElementById('trainingCount').textContent = events.training;
         }
-
-        // Add traffic entry
-        function addTrafficEntry(vesselName, mmsi, status, heading, speed) {
-            const entry = {
-                id: trafficData.length,
-                vessel: vesselName,
-                mmsi: mmsi,
-                status: status,
-                heading: heading,
-                speed: speed,
-                timestamp: new Date().toLocaleTimeString()
-            };
-            
-            trafficData.unshift(entry); // Add to front
-            if (trafficData.length > 10) {
-                trafficData.pop(); // Keep only 10 most recent
-            }
-            
-            renderTrafficList();
-        }
-
-        function renderTrafficList() {
-            const trafficList = document.getElementById('trafficList');
-            
-            if (trafficData.length === 0) {
-                trafficList.innerHTML = '<div class="no-traffic">No traffic data available</div>';
-                return;
-            }
-            
-            trafficList.innerHTML = trafficData.map(entry => `
-                <div class="traffic-item">
-                    <div class="traffic-vessel">${entry.vessel}</div>
-                    <div class="traffic-details">
-                        MMSI: ${entry.mmsi} | Status: ${entry.status}<br>
-                        Heading: ${entry.heading}° | Speed: ${entry.speed} knots
-                    </div>
-                    <div class="traffic-timestamp">${entry.timestamp}</div>
-                </div>
-            `).join('');
-        }
-
-        // Sample traffic data - uncomment to test
-        /*
-        addTrafficEntry('Container Ship A', '123456789', 'Underway', '045', '15.2');
-        addTrafficEntry('Fishing Vessel B', '987654321', 'Fishing', '180', '8.5');
-        addTrafficEntry('Tanker C', '456789123', 'Underway', '270', '12.0');
-        */
         
         // Initialize
         updateStats();
         renderMarkersList();
-        renderTrafficList();
     </script>
 </body>
 </html>
