@@ -4,51 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nautical Operations Tool</title>
+    <link rel="stylesheet" href="styles.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <style>
-        body {font-family: Arial, sans-serif;}
-        #marker-list {margin-top: 20px;}
-        #marker-list li {margin: 5px 0;}
-    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
 </head>
 <body>
-    <h1>Nautical Operations Tool</h1>
-    <div id="map"></div>
-    <ul id="marker-list"></ul>
+    <div id="map" style="height: 400px;"></div>
+    <div id="chartContainer"> <!-- Add your chart here --> </div>
     <script>
-        let markers = [];
-
-        function addMarker(lat, lng) {
-            const marker = { lat, lng };
-            markers.push(marker);
-            renderMarkers();
-        }
-
-        function renderMarkers() {
-            $('#marker-list').empty();
-            markers.forEach((marker, index) => {
-                $('#marker-list').append(`<li>Lat: ${marker.lat}, Lng: ${marker.lng} <button onclick='editMarker(${index})'>Edit</button> <button onclick='deleteMarker(${index})'>Delete</button></li>`);
-            });
-        }
-
-        function editMarker(index) {
-            const newLat = prompt('Enter new latitude:', markers[index].lat);
-            const newLng = prompt('Enter new longitude:', markers[index].lng);
-            if (newLat !== null && newLng !== null) {
-                markers[index] = { lat: parseFloat(newLat), lng: parseFloat(newLng) };
-                renderMarkers();
-            }
-        }
-
-        function deleteMarker(index) {
-            markers.splice(index, 1);
-            renderMarkers();
-        }
-
         $(document).ready(function() {
-            // Example: add initial markers
-            addMarker(40.7128, -74.0060); // New York
-            addMarker(34.0522, -118.2437); // Los Angeles
+            var map = L.map('map').setView([51.505, -0.09], 13);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 19,
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            var marker = L.marker([51.5, -0.09]).addTo(map);
+            marker.bindPopup('<b>Hello world!</b><br>I am a popup.').openPopup();
+
+            // Chart setup could go here (e.g., Chart.js)
         });
     </script>
 </body>
