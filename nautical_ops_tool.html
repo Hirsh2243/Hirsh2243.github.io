@@ -55,6 +55,16 @@
             color: #333;
         }
         
+        .format-info {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 10px;
+            background-color: #f5f5f5;
+            padding: 8px;
+            border-left: 3px solid #4CAF50;
+            border-radius: 3px;
+        }
+        
         .coordinate-input {
             margin: 12px 0;
             display: flex;
@@ -91,26 +101,6 @@
             background-color: #45a049;
         }
         
-        #chart-panel {
-            padding: 15px;
-            background-color: #fff;
-            border: 1px solid #ddd;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            flex: 1;
-            min-height: 300px;
-        }
-        
-        #chart-panel h3 {
-            font-size: 16px;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        #eventChart {
-            max-height: 250px;
-        }
-        
         .event-stats {
             padding: 15px;
             background-color: #fff;
@@ -139,6 +129,41 @@
             color: #4CAF50;
             font-weight: bold;
         }
+
+        .markers-list {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .markers-list h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .marker-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #4CAF50;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .marker-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .marker-coords {
+            color: #666;
+            font-size: 10px;
+        }
     </style>
 </head>
 <body>
@@ -146,35 +171,45 @@
         <div id="map"></div>
         <div class="right-panel">
             <div id="operations-panel">
-                <h2>Input Maritime Event Coordinates</h2>
+                <h2>Add Maritime Points</h2>
+                <div class="format-info">
+                    <strong>GPS Formats:</strong><br>
+                    • Decimal: 40.7128, -74.0060<br>
+                    • DM: 40 42.768', -74 0.360'<br>
+                    • DMS: 40 42' 46.08", -74 0' 21.6"
+                </div>
                 <div class="coordinate-input">
-                    <label for="distress">Distress Coordinates:</label>
+                    <label for="point-label">Point Label:</label>
+                    <input type="text" id="point-label" placeholder="e.g., Buoy A, Vessel B">
+                </div>
+                <div class="coordinate-input">
+                    <label for="distress">Distress:</label>
                     <input type="text" id="distress" placeholder="e.g., 40.7128, -74.0060">
                 </div>
                 <div class="coordinate-input">
-                    <label for="fire">Fire Coordinates:</label>
-                    <input type="text" id="fire" placeholder="e.g., 40.7128, -74.0060">
+                    <label for="fire">Fire:</label>
+                    <input type="text" id="fire" placeholder="e.g., 40 42.768', -74 0.360'">
                 </div>
                 <div class="coordinate-input">
-                    <label for="water">Water Coordinates:</label>
-                    <input type="text" id="water" placeholder="e.g., 40.7128, -74.0060">
+                    <label for="water">Water:</label>
+                    <input type="text" id="water" placeholder="e.g., 40 42' 46.08\", -74 0' 21.6\"">
                 </div>
                 <div class="coordinate-input">
-                    <label for="training">Training Coordinates:</label>
+                    <label for="training">Training:</label>
                     <input type="text" id="training" placeholder="e.g., 40.7128, -74.0060">
                 </div>
-                <button onclick="createMarker()">Create Marker</button>
+                <button onclick="createMarker()">Add Point</button>
             </div>
             
-            <div id="chart-panel">
-                <h3>Event Distribution</h3>
-                <canvas id="eventChart"></canvas>
+            <div class="markers-list">
+                <h3>Active Points</h3>
+                <div id="markersList">No points added yet</div>
             </div>
-            
+
             <div class="event-stats">
                 <h3>Statistics</h3>
                 <div class="stat-item">
-                    <span class="stat-label">Total Events:</span>
+                    <span class="stat-label">Total Points:</span>
                     <span class="stat-value" id="totalEvents">0</span>
                 </div>
                 <div class="stat-item">
@@ -200,9 +235,6 @@
     <!-- Leaflet JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     
-    <!-- Chart.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    
     <script>
         // Initialize map
         const map = L.map('map').setView([40.7128, -74.0060], 4);
@@ -213,12 +245,16 @@
             maxZoom: 19
         }).addTo(map);
         
-        // Event counters and markers storage
+        // Store all markers with custom labels
+        let markers = [];
+        let markerIdCounter = 0;
+        
+        // Event counters
         const events = {
-            distress: [],
-            fire: [],
-            water: [],
-            training: []
+            distress: 0,
+            fire: 0,
+            water: 0,
+            training: 0
         };
         
         const markerIcons = {
@@ -228,139 +264,166 @@
             training: L.divIcon({ className: 'training-marker', html: '📚', iconSize: [32, 32] })
         };
         
-        let chart = null;
+        // Parse multiple GPS coordinate formats
+        function parseCoordinate(coordString) {
+            const parts = coordString.split(',').map(p => p.trim());
+            if (parts.length !== 2) {
+                throw new Error('Expected two coordinates separated by comma');
+            }
+            
+            const lat = parseCoordinateValue(parts[0]);
+            const lng = parseCoordinateValue(parts[1]);
+            
+            return [lat, lng];
+        }
+        
+        function parseCoordinateValue(value) {
+            value = value.trim();
+            
+            // Format 1: Decimal degrees (DD.DDDD)
+            if (/^-?\d+\.?\d*$/.test(value)) {
+                const decimal = parseFloat(value);
+                if (isNaN(decimal)) throw new Error(`Invalid decimal degrees: ${value}`);
+                return decimal;
+            }
+            
+            // Format 2: Degrees Decimal Minutes (DD MM.MMM')
+            const dmsDecimalMatch = value.match(/^(-?)(\d+)\s+([\d.]+)'$/);
+            if (dmsDecimalMatch) {
+                const sign = dmsDecimalMatch[1] === '-' ? -1 : 1;
+                const degrees = parseInt(dmsDecimalMatch[2]);
+                const decimalMinutes = parseFloat(dmsDecimalMatch[3]);
+                
+                if (isNaN(decimalMinutes)) throw new Error(`Invalid decimal minutes: ${value}`);
+                
+                return sign * (degrees + decimalMinutes / 60);
+            }
+            
+            // Format 3: Degrees Minutes Seconds (DD MM'SS.S")
+            const dmsMatch = value.match(/^(-?)(\d+)\s+(\d+)'\s+([\d.]+)"$/);
+            if (dmsMatch) {
+                const sign = dmsMatch[1] === '-' ? -1 : 1;
+                const degrees = parseInt(dmsMatch[2]);
+                const minutes = parseInt(dmsMatch[3]);
+                const seconds = parseFloat(dmsMatch[4]);
+                
+                if (isNaN(seconds)) throw new Error(`Invalid seconds: ${value}`);
+                
+                return sign * (degrees + minutes / 60 + seconds / 3600);
+            }
+            
+            throw new Error(`Could not parse coordinate: ${value}`);
+        }
         
         function createMarker() {
+            const customLabel = document.getElementById('point-label').value;
             const distressCoords = document.getElementById('distress').value;
             const fireCoords = document.getElementById('fire').value;
             const waterCoords = document.getElementById('water').value;
             const trainingCoords = document.getElementById('training').value;
             
-            // Parse and create markers
             if (distressCoords) {
-                addMarker(distressCoords, 'distress', '🚨 Distress');
+                addMarkerToMap(distressCoords, 'distress', customLabel || '🚨 Distress');
             }
             if (fireCoords) {
-                addMarker(fireCoords, 'fire', '🔥 Fire');
+                addMarkerToMap(fireCoords, 'fire', customLabel || '🔥 Fire');
             }
             if (waterCoords) {
-                addMarker(waterCoords, 'water', '💧 Water');
+                addMarkerToMap(waterCoords, 'water', customLabel || '💧 Water');
             }
             if (trainingCoords) {
-                addMarker(trainingCoords, 'training', '📚 Training');
+                addMarkerToMap(trainingCoords, 'training', customLabel || '📚 Training');
             }
             
             // Clear inputs
+            document.getElementById('point-label').value = '';
             document.getElementById('distress').value = '';
             document.getElementById('fire').value = '';
             document.getElementById('water').value = '';
             document.getElementById('training').value = '';
             
-            // Update statistics and chart
             updateStats();
-            updateChart();
+            renderMarkersList();
         }
         
-        function addMarker(coordString, type, label) {
+        function addMarkerToMap(coordString, type, label) {
             try {
-                const [lat, lng] = coordString.split(',').map(c => parseFloat(c.trim()));
+                const [lat, lng] = parseCoordinate(coordString);
                 
                 if (isNaN(lat) || isNaN(lng)) {
-                    alert('Invalid coordinates. Please use format: latitude, longitude');
+                    alert('Invalid coordinates.');
                     return;
                 }
                 
-                const marker = L.marker([lat, lng], { 
+                if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                    alert('Coordinates out of range.');
+                    return;
+                }
+                
+                const markerId = markerIdCounter++;
+                const leafletMarker = L.marker([lat, lng], { 
                     icon: markerIcons[type],
                     title: label
-                }).addTo(map).bindPopup(`<b>${label}</b><br>Lat: ${lat}<br>Lng: ${lng}`);
+                }).addTo(map).bindPopup(`<b>${label}</b><br>Lat: ${lat.toFixed(4)}<br>Lng: ${lng.toFixed(4)}`);
                 
-                events[type].push({ lat, lng, marker });
-                console.log(`${label} marker created at:`, lat, lng);
+                markers.push({
+                    id: markerId,
+                    type: type,
+                    lat: lat,
+                    lng: lng,
+                    label: label,
+                    leafletMarker: leafletMarker
+                });
+                
+                events[type]++;
                 
             } catch (error) {
                 alert('Error parsing coordinates: ' + error.message);
             }
         }
-        
-        function updateStats() {
-            const distressCount = events.distress.length;
-            const fireCount = events.fire.length;
-            const waterCount = events.water.length;
-            const trainingCount = events.training.length;
-            const totalEvents = distressCount + fireCount + waterCount + trainingCount;
-            
-            document.getElementById('totalEvents').textContent = totalEvents;
-            document.getElementById('distressCount').textContent = distressCount;
-            document.getElementById('fireCount').textContent = fireCount;
-            document.getElementById('waterCount').textContent = waterCount;
-            document.getElementById('trainingCount').textContent = trainingCount;
-        }
-        
-        function updateChart() {
-            const ctx = document.getElementById('eventChart').getContext('2d');
-            
-            const data = {
-                labels: ['Distress', 'Fire', 'Water', 'Training'],
-                datasets: [{
-                    label: 'Event Count',
-                    data: [
-                        events.distress.length,
-                        events.fire.length,
-                        events.water.length,
-                        events.training.length
-                    ],
-                    backgroundColor: [
-                        '#FF6B6B',
-                        '#FFA500',
-                        '#4ECDC4',
-                        '#95E1D3'
-                    ],
-                    borderColor: [
-                        '#C92A2A',
-                        '#FF8C00',
-                        '#05A5A3',
-                        '#38B9AA'
-                    ],
-                    borderWidth: 2
-                }]
-            };
-            
-            if (chart) {
-                chart.data = data;
-                chart.update();
-            } else {
-                chart = new Chart(ctx, {
-                    type: 'bar',
-                    data: data,
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: Math.max(
-                                    events.distress.length,
-                                    events.fire.length,
-                                    events.water.length,
-                                    events.training.length,
-                                    5
-                                ) + 1
-                            }
-                        },
-                        plugins: {
-                            legend: {
-                                display: true,
-                                position: 'top'
-                            }
-                        }
-                    }
-                });
+
+        function deleteMarker(markerId) {
+            const index = markers.findIndex(m => m.id === markerId);
+            if (index > -1) {
+                const marker = markers[index];
+                map.removeLayer(marker.leafletMarker);
+                events[marker.type]--;
+                markers.splice(index, 1);
+                updateStats();
+                renderMarkersList();
             }
         }
+
+        function renderMarkersList() {
+            const listContainer = document.getElementById('markersList');
+            
+            if (markers.length === 0) {
+                listContainer.innerHTML = 'No points added yet';
+                return;
+            }
+            
+            listContainer.innerHTML = markers.map(marker => `
+                <div class="marker-item">
+                    <div class="marker-name">${marker.label}</div>
+                    <div class="marker-coords">Lat: ${marker.lat.toFixed(4)}, Lng: ${marker.lng.toFixed(4)}</div>
+                    <button onclick="deleteMarker(${marker.id})" style="padding: 3px 8px; font-size: 10px; margin-top: 5px;">Delete</button>
+                </div>
+            `).join('');
+        }
         
-        // Initialize chart
-        updateChart();
+        function updateStats() {
+            const totalEvents = events.distress + events.fire + events.water + events.training;
+            
+            document.getElementById('totalEvents').textContent = totalEvents;
+            document.getElementById('distressCount').textContent = events.distress;
+            document.getElementById('fireCount').textContent = events.fire;
+            document.getElementById('waterCount').textContent = events.water;
+            document.getElementById('trainingCount').textContent = events.training;
+        }
+        
+        // Initialize
+        updateStats();
+        renderMarkersList();
     </script>
 </body>
 </html>
