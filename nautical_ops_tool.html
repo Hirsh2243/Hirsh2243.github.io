@@ -536,6 +536,919 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
     
     <script>
+        // Initialize map with nautical chart
+        const map = L.map('map').setView([40.7128, -74.0060], 4);
+        
+        // Add NOAA nautical chart tiles (charted water depth and buoys)
+        L.tileLayer('https://tiles.arcgisonline.com/tiles/World_Topo_Map/{z}/{x}/{y}', {
+            attribution: '© NOAA, Esri, & Contributors',
+            maxZoom: 19
+        }).addTo(map);
+
+        // Add additional nautical chart layer with buoys and depth
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean_Basemap/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles © NOAA',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Store all markers with custom labels
+        let markers = [];
+        let markerIdCounter = 0;
+        let trafficData = [];
+        let weatherData = [];
+        let logEntries = [];
+        
+        // Event counters
+        const events = {
+            distress: 0,
+            fire: 0,
+            water: 0,
+            training: 0
+        };
+        
+        const markerIcons = {
+            distress: L.divIcon({ className: 'distress-marker', html: '🚨', iconSize: [32, 32] }),
+            fire: L.divIcon({ className: 'fire-marker', html: '🔥', iconSize: [32, 32] }),
+            water: L.divIcon({ className: 'water-marker', html: '💧', iconSize: [32, 32] }),
+            training: L.divIcon({ className: 'training-marker', html: '📚', iconSize: [32, 32] })
+        };
+
+        // Add buoy markers on the map
+        function addBuoys() {
+            const buoys = [
+                { lat: 40.7128, lng: -74.0060, name: 'Buoy A', depth: '42ft' },
+                { lat: 40.8, lng: -74.2, name: 'Buoy B', depth: '38ft' },
+                { lat: 40.6, lng: -74.1, name: 'Buoy C', depth: '55ft' },
+                { lat: 40.75, lng: -73.9, name: 'Buoy D', depth: '45ft' },
+                { lat: 40.65, lng: -73.95, name: 'Buoy E', depth: '50ft' },
+            ];
+
+            buoys.forEach(buoy => {
+                L.marker([buoy.lat, buoy.lng], {
+                    icon: L.divIcon({ className: 'buoy-marker', html: '⚓', iconSize: [24, 24] })
+                }).addTo(map).bindPopup(`<b>${buoy.name}</b><br>Depth: ${buoy.depth}`);
+            });
+        }
+        
+        // Parse multiple GPS coordinate formats
+        function parseCoordinate(coordString) {
+            const parts = coordString.split(',').map(p => p.trim());
+            if (parts.length !== 2) {
+                throw new Error('Expected two coordinates separated by comma');
+            }
+            
+            const lat = parseCoordinateValue(parts[0]);
+            const lng = parseCoordinateValue(parts[1]);
+            
+            return [lat, lng];
+        }
+        
+        function parseCoordinateValue(value) {
+            value = value.trim();
+            
+            // Format 1: Decimal degrees (DD.DDDD)
+            if (/^-?\d+\.?\d*$/.test(value)) {
+                const decimal = parseFloat(value);
+                if (isNaN(decimal)) throw new Error(`Invalid decimal degrees: ${value}`);
+                return decimal;
+            }
+            
+            // Format 2: Degrees Decimal Minutes (DD MM.MMM')
+            const dmsDecimalMatch = value.match(/^(-?)(\d+)\s+([\d.]+)'$/);
+            if (dmsDecimalMatch) {
+                const sign = dmsDecimalMatch[1] === '-' ? -1 : 1;
+                const degrees = parseInt(dmsDecimalMatch[2]);
+                const decimalMinutes = parseFloat(dmsDecimalMatch[3]);
+                
+                if (isNaN(decimalMinutes)) throw new Error(`Invalid decimal minutes: ${value}`);
+                
+                return sign * (degrees + decimalMinutes / 60);
+            }
+            
+            // Format 3: Degrees Minutes Seconds (DD MM'SS.S")
+            const dmsMatch = value.match(/^(-?)(\d+)\s+(\d+)'\s+([\d.]+)"$/);
+            if (dmsMatch) {
+                const sign = dmsMatch[1] === '-' ? -1 : 1;
+                const degrees = parseInt(dmsMatch[2]);
+                const minutes = parseInt(dmsMatch[3]);
+                const seconds = parseFloat(dmsMatch[4]);
+                
+                if (isNaN(seconds)) throw new Error(`Invalid seconds: ${value}`);
+                
+                return sign * (degrees + minutes / 60 + seconds / 3600);
+            }
+            
+            throw new Error(`Could not parse coordinate: ${value}`);
+        }
+        
+        function createMarker() {
+            const customLabel = document.getElementById('point-label').value;
+            const distressCoords = document.getElementById('distress').value;
+            const fireCoords = document.getElementById('fire').value;
+            const waterCoords = document.getElementById('water').value;
+            const trainingCoords = document.getElementById('training').value;
+            
+            if (distressCoords) {
+                addMarkerToMap(distressCoords, 'distress', customLabel || '🚨 Distress');
+            }
+            if (fireCoords) {
+                addMarkerToMap(fireCoords, 'fire', customLabel || '🔥 Fire');
+            }
+            if (waterCoords) {
+                addMarkerToMap(waterCoords, 'water', customLabel || '💧 Water');
+            }
+            if (trainingCoords) {
+                addMarkerToMap(trainingCoords, 'training', customLabel || '📚 Training');
+            }
+            
+            // Clear inputs
+            document.getElementById('point-label').value = '';
+            document.getElementById('distress').value = '';
+            document.getElementById('fire').value = '';
+            document.getElementById('water').value = '';
+            document.getElementById('training').value = '';
+            
+            updateStats();
+            renderMarkersList();
+        }
+        
+        function addMarkerToMap(coordString, type, label) {
+            try {
+                const [lat, lng] = parseCoordinate(coordString);
+                
+                if (isNaN(lat) || isNaN(lng)) {
+                    alert('Invalid coordinates.');
+                    return;
+                }
+                
+                if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                    alert('Coordinates out of range.');
+                    return;
+                }
+                
+                const markerId = markerIdCounter++;
+                const leafletMarker = L.marker([lat, lng], { 
+                    icon: markerIcons[type],
+                    title: label
+                }).addTo(map).bindPopup(`<b>${label}</b><br>Lat: ${lat.toFixed(4)}<br>Lng: ${lng.toFixed(4)}`);
+                
+                markers.push({
+                    id: markerId,
+                    type: type,
+                    lat: lat,
+                    lng: lng,
+                    label: label,
+                    leafletMarker: leafletMarker
+                });
+                
+                events[type]++;
+                
+            } catch (error) {
+                alert('Error parsing coordinates: ' + error.message);
+            }
+        }
+
+        function deleteMarker(markerId) {
+            const index = markers.findIndex(m => m.id === markerId);
+            if (index > -1) {
+                const marker = markers[index];
+                map.removeLayer(marker.leafletMarker);
+                events[marker.type]--;
+                markers.splice(index, 1);
+                updateStats();
+                renderMarkersList();
+            }
+        }
+
+        function renderMarkersList() {
+            const listContainer = document.getElementById('markersList');
+            
+            if (markers.length === 0) {
+                listContainer.innerHTML = 'No points added yet';
+                return;
+            }
+            
+            listContainer.innerHTML = markers.map(marker => `
+                <div class="marker-item">
+                    <div class="marker-name">${marker.label}</div>
+                    <div class="marker-coords">Lat: ${marker.lat.toFixed(4)}, Lng: ${marker.lng.toFixed(4)}</div>
+                    <button onclick="deleteMarker(${marker.id})" style="padding: 3px 8px; font-size: 10px; margin-top: 5px;">Delete</button>
+                </div>
+            `).join('');
+        }
+        
+        function updateStats() {
+            const totalEvents = events.distress + events.fire + events.water + events.training;
+            
+            document.getElementById('totalEvents').textContent = totalEvents;
+            document.getElementById('distressCount').textContent = events.distress;
+            document.getElementById('fireCount').textContent = events.fire;
+            document.getElementById('waterCount').textContent = events.water;
+            document.getElementById('trainingCount').textContent = events.training;
+        }
+
+        // Fetch AIS data
+        function fetchMarineTraffic() {
+            const trafficList = document.getElementById('trafficList');
+            
+            const sampleTraffic = [
+                { vessel: 'Container Ship Alpha', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 kts' },
+                { vessel: 'Fishing Vessel Beta', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 kts' },
+                { vessel: 'Tanker Charlie', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 kts' },
+            ];
+
+            trafficList.innerHTML = sampleTraffic.map((vessel) => `
+                <div class="traffic-item">
+                    <div class="traffic-vessel">${vessel.vessel}</div>
+                    <div class="traffic-details">MMSI: ${vessel.mmsi} | ${vessel.status}<br>${vessel.heading} | ${vessel.speed}</div>
+                </div>
+            `).join('');
+        }
+
+        // Celsius to Fahrenheit conversion
+        function celsiusToFahrenheit(celsius) {
+            return Math.round((celsius * 9/5) + 32);
+        }
+
+        // Generate realistic weather based on region
+        function generateWeatherVariation() {
+            const variations = [
+                { tempVariation: -2, windVariation: -3 },
+                { tempVariation: 0, windVariation: 0 },
+                { tempVariation: 1, windVariation: 2 },
+                { tempVariation: -1, windVariation: 1 },
+            ];
+            return variations[Math.floor(Math.random() * variations.length)];
+        }
+
+        // Fetch Weather data
+        function fetchWeather() {
+            const weatherList = document.getElementById('weatherList');
+            const variation = generateWeatherVariation();
+            
+            const sampleWeather = [
+                { 
+                    location: 'Atlantic Sea', 
+                    condition: 'Partly Cloudy', 
+                    temp: celsiusToFahrenheit(18 + variation.tempVariation) + '°F', 
+                    windSpeed: (12 + variation.windVariation) + ' knots', 
+                    windDir: 'NW', 
+                    visibility: '10 km', 
+                    waveHeight: '1.5 m',
+                    pressure: '1013 mb'
+                },
+                { 
+                    location: 'Gulf of Mexico', 
+                    condition: 'Sunny', 
+                    temp: celsiusToFahrenheit(24 + variation.tempVariation) + '°F', 
+                    windSpeed: (10 + variation.windVariation) + ' knots', 
+                    windDir: 'E', 
+                    visibility: '12 km', 
+                    waveHeight: '1.0 m',
+                    pressure: '1015 mb'
+                },
+                { 
+                    location: 'Pacific Sea', 
+                    condition: 'Rainy', 
+                    temp: celsiusToFahrenheit(16 + variation.tempVariation) + '��F', 
+                    windSpeed: (16 + variation.windVariation) + ' knots', 
+                    windDir: 'W', 
+                    visibility: '6 km', 
+                    waveHeight: '2.2 m',
+                    pressure: '1010 mb'
+                },
+            ];
+
+            weatherList.innerHTML = sampleWeather.map((weather) => `
+                <div class="weather-item">
+                    <div class="weather-location">${weather.location}</div>
+                    <div class="weather-details">
+                        🌡️ ${weather.temp} | 💨 ${weather.windSpeed} ${weather.windDir}<br>
+                        👁️ ${weather.visibility} | 🌊 ${weather.waveHeight}<br>
+                        📊 Pressure: ${weather.pressure} | ${weather.condition}
+                    </div>
+                </div>
+            `).join('');
+
+            // Update last refresh time
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = `Updated: ${now.toLocaleTimeString()}`;
+        }
+
+        // Add log entry
+        function addLogEntry() {
+            const eventInput = document.getElementById('log-event').value;
+            const notesInput = document.getElementById('log-notes').value;
+
+            if (!eventInput.trim()) {
+                alert('Please enter an event');
+                return;
+            }
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+
+            logEntries.unshift({
+                time: timeString,
+                event: eventInput,
+                notes: notesInput || '-'
+            });
+
+            // Clear inputs
+            document.getElementById('log-event').value = '';
+            document.getElementById('log-notes').value = '';
+
+            renderLogEntries();
+        }
+
+        // Render log entries
+        function renderLogEntries() {
+            const logEntriesContainer = document.getElementById('logEntries');
+
+            if (logEntries.length === 0) {
+                logEntriesContainer.innerHTML = '<div class="no-logs">No log entries yet</div>';
+                return;
+            }
+
+            logEntriesContainer.innerHTML = logEntries.map((entry) => `
+                <div class="log-entry">
+                    <div class="log-time">${entry.time}</div>
+                    <div class="log-event">${entry.event}</div>
+                    <div class="log-notes">${entry.notes}</div>
+                </div>
+            `).join('');
+        }
+
+        // Allow Enter key to add log entry
+        document.addEventListener('DOMContentLoaded', function() {
+            const logEventInput = document.getElementById('log-event');
+            const logNotesInput = document.getElementById('log-notes');
+            
+            if (logEventInput) {
+                logEventInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') addLogEntry();
+                });
+            }
+            if (logNotesInput) {
+                logNotesInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') addLogEntry();
+                });
+            }
+        });
+
+        // Auto-refresh weather every hour (3600000 ms)
+        function setupWeatherAutoRefresh() {
+            fetchWeather(); // Initial load
+            setInterval(fetchWeather, 3600000); // Refresh every hour
+        }
+        
+        // Initialize
+        updateStats();
+        renderMarkersList();
+        fetchMarineTraffic();
+        setupWeatherAutoRefresh();
+        renderLogEntries();
+        addBuoys();
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nautical Operations Tool</title>
+    
+    <!-- Leaflet CSS for map -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #f0f2f5;
+        }
+        
+        .container {
+            display: flex;
+            height: 100vh;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        #map {
+            flex: 2;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: scroll;
+            padding-right: 10px;
+        }
+
+        /* Custom scrollbar styling */
+        .right-panel::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .right-panel::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 10px;
+        }
+
+        .right-panel::-webkit-scrollbar-thumb:hover {
+            background: #45a049;
+        }
+
+        /* Firefox scrollbar */
+        .right-panel {
+            scrollbar-color: #4CAF50 #f1f1f1;
+            scrollbar-width: thin;
+        }
+        
+        #operations-panel {
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        
+        #operations-panel h2 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .format-info {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 10px;
+            background-color: #f5f5f5;
+            padding: 8px;
+            border-left: 3px solid #4CAF50;
+            border-radius: 3px;
+        }
+        
+        .coordinate-input {
+            margin: 12px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .coordinate-input label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 12px;
+        }
+        
+        .coordinate-input input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .event-stats {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .stat-value {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .markers-list {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .markers-list h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .marker-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #4CAF50;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .marker-name {
+            font-weight: bold;
+            color: #333;
+        }
+
+        .marker-coords {
+            color: #666;
+            font-size: 10px;
+        }
+
+        #marine-traffic {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        #marine-traffic h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .traffic-item {
+            padding: 8px;
+            margin-bottom: 6px;
+            background-color: #f0f8ff;
+            border-left: 3px solid #2196F3;
+            border-radius: 4px;
+            font-size: 10px;
+        }
+
+        .traffic-vessel {
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .traffic-details {
+            color: #666;
+            font-size: 9px;
+            margin-top: 2px;
+        }
+
+        .no-traffic {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .external-link {
+            display: inline-block;
+            padding: 6px 10px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 10px;
+            margin-top: 8px;
+        }
+
+        .external-link:hover {
+            background-color: #0b7dda;
+        }
+
+        #weather-panel {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        #weather-panel h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .update-time {
+            font-size: 9px;
+            color: #999;
+            font-weight: normal;
+        }
+
+        .weather-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #fff8e1;
+            border-left: 3px solid #FFC107;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .weather-location {
+            font-weight: bold;
+            color: #FF6F00;
+            font-size: 12px;
+        }
+
+        .weather-details {
+            color: #666;
+            font-size: 10px;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        .no-weather {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
+        }
+
+        #log-panel {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        #log-panel h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .log-input-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+
+        .log-input-section input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .log-input-section button {
+            padding: 8px 12px;
+            margin-top: 0;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .log-table {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .log-header {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr;
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+            flex-shrink: 0;
+        }
+
+        .log-header div {
+            padding: 5px;
+            text-align: left;
+        }
+
+        .log-entries {
+            flex: 1;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+            min-height: 0;
+        }
+
+        /* Custom scrollbar for log entries */
+        .log-entries::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-entries::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .log-entries::-webkit-scrollbar-thumb {
+            background: #4CAF50;
+            border-radius: 5px;
+        }
+
+        .log-entries::-webkit-scrollbar-thumb:hover {
+            background: #45a049;
+        }
+
+        .log-entry {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr;
+            border-bottom: 1px solid #eee;
+            padding: 8px;
+            font-size: 10px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .log-entry:hover {
+            background-color: #f0f0f0;
+        }
+
+        .log-time {
+            color: #666;
+            font-weight: bold;
+        }
+
+        .log-event {
+            color: #333;
+        }
+
+        .log-notes {
+            color: #666;
+            font-style: italic;
+        }
+
+        .no-logs {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="map"></div>
+        <div class="right-panel">
+            <div id="operations-panel">
+                <h2>Add Maritime Points</h2>
+                <div class="format-info">
+                    <strong>GPS Formats:</strong><br>
+                    • Decimal: 40.7128, -74.0060<br>
+                    • DM: 40 42.768', -74 0.360'<br>
+                    • DMS: 40 42' 46.08", -74 0' 21.6"
+                </div>
+                <div class="coordinate-input">
+                    <label for="point-label">Point Label:</label>
+                    <input type="text" id="point-label" placeholder="e.g., Buoy A, Vessel B">
+                </div>
+                <div class="coordinate-input">
+                    <label for="distress">Distress:</label>
+                    <input type="text" id="distress" placeholder="e.g., 40.7128, -74.0060">
+                </div>
+                <div class="coordinate-input">
+                    <label for="fire">Fire:</label>
+                    <input type="text" id="fire" placeholder="e.g., 40 42.768', -74 0.360'">
+                </div>
+                <div class="coordinate-input">
+                    <label for="water">Water:</label>
+                    <input type="text" id="water" placeholder="e.g., 40 42' 46.08\", -74 0' 21.6\"">
+                </div>
+                <div class="coordinate-input">
+                    <label for="training">Training:</label>
+                    <input type="text" id="training" placeholder="e.g., 40.7128, -74.0060">
+                </div>
+                <button onclick="createMarker()">Add Point</button>
+            </div>
+            
+            <div class="markers-list">
+                <h3>Active Points</h3>
+                <div id="markersList">No points added yet</div>
+            </div>
+
+            <div class="event-stats">
+                <h3>Statistics</h3>
+                <div class="stat-item">
+                    <span class="stat-label">Total Points:</span>
+                    <span class="stat-value" id="totalEvents">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Distress:</span>
+                    <span class="stat-value" id="distressCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Fire:</span>
+                    <span class="stat-value" id="fireCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Water:</span>
+                    <span class="stat-value" id="waterCount">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Training:</span>
+                    <span class="stat-value" id="trainingCount">0</span>
+                </div>
+            </div>
+
+            <div id="marine-traffic">
+                <h3>🚢 Marine Traffic Feed</h3>
+                <div id="trafficList" class="no-traffic">Loading marine traffic data...</div>
+                <a href="https://www.marinetraffic.com/en/ais/home/centerx:-12.0/centery:25.0/zoom:4" target="_blank" class="external-link">📡 View on MarineTraffic</a>
+            </div>
+
+            <div id="weather-panel">
+                <h3>⛅ Weather Conditions <span class="update-time" id="lastUpdate"></span></h3>
+                <div id="weatherList" class="no-weather">Loading weather data...</div>
+            </div>
+
+            <div id="log-panel">
+                <h3>📋 Operations Log</h3>
+                <div class="log-input-section">
+                    <input type="text" id="log-event" placeholder="Event (e.g., Vessel Spotted, Distress Call)">
+                    <input type="text" id="log-notes" placeholder="Notes">
+                    <button onclick="addLogEntry()">Log</button>
+                </div>
+                <div class="log-table">
+                    <div class="log-header">
+                        <div>Time</div>
+                        <div>Event</div>
+                        <div>Notes</div>
+                    </div>
+                    <div class="log-entries" id="logEntries">
+                        <div class="no-logs">No log entries yet</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    
+    <script>
         // Initialize map
         const map = L.map('map').setView([40.7128, -74.0060], 4);
         
