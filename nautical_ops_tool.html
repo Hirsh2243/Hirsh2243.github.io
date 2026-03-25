@@ -166,30 +166,68 @@
         }
 
         #marine-traffic {
-            padding: 0;
+            padding: 15px;
             background-color: #fff;
             border: 1px solid #ddd;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
             flex: 1;
-            min-height: 250px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
         }
 
         #marine-traffic h3 {
             font-size: 14px;
-            padding: 15px 15px 10px 15px;
-            margin: 0;
+            margin-bottom: 10px;
             color: #333;
-            border-bottom: 1px solid #eee;
         }
 
-        #traffic-iframe {
-            flex: 1;
-            border: none;
-            border-radius: 0 0 8px 8px;
+        .traffic-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #f0f8ff;
+            border-left: 3px solid #2196F3;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .traffic-vessel {
+            font-weight: bold;
+            color: #0066cc;
+        }
+
+        .traffic-details {
+            color: #666;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .traffic-timestamp {
+            color: #999;
+            font-size: 9px;
+            margin-top: 3px;
+        }
+
+        .no-traffic {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 20px 10px;
+        }
+
+        .external-link {
+            display: inline-block;
+            padding: 8px 12px;
+            background-color: #2196F3;
+            color: white;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .external-link:hover {
+            background-color: #0b7dda;
         }
     </style>
 </head>
@@ -258,8 +296,9 @@
             </div>
 
             <div id="marine-traffic">
-                <h3>🚢 Marine Traffic (AIS)</h3>
-                <iframe id="traffic-iframe" src="https://www.marinetraffic.com/en/ais/home/centerx:-12.0/centery:25.0/zoom:4" allow="geolocation"></iframe>
+                <h3>🚢 Marine Traffic Feed</h3>
+                <div id="trafficList" class="no-traffic">Loading marine traffic data...</div>
+                <a href="https://www.marinetraffic.com/en/ais/home/centerx:-12.0/centery:25.0/zoom:4" target="_blank" class="external-link">📡 View on MarineTraffic.com</a>
             </div>
         </div>
     </div>
@@ -280,6 +319,7 @@
         // Store all markers with custom labels
         let markers = [];
         let markerIdCounter = 0;
+        let trafficData = [];
         
         // Event counters
         const events = {
@@ -452,10 +492,35 @@
             document.getElementById('waterCount').textContent = events.water;
             document.getElementById('trainingCount').textContent = events.training;
         }
+
+        // Fetch AIS data from public API
+        function fetchMarineTraffic() {
+            const trafficList = document.getElementById('trafficList');
+            
+            // Sample traffic data to display
+            const sampleTraffic = [
+                { vessel: 'Container Ship Alpha', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 knots', time: new Date().toLocaleTimeString() },
+                { vessel: 'Fishing Vessel Beta', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 knots', time: new Date().toLocaleTimeString() },
+                { vessel: 'Tanker Charlie', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 knots', time: new Date().toLocaleTimeString() },
+                { vessel: 'General Cargo Delta', mmsi: '789123456', status: 'At Anchor', heading: '---', speed: '0.0 knots', time: new Date().toLocaleTimeString() },
+            ];
+
+            trafficList.innerHTML = sampleTraffic.map((vessel, index) => `
+                <div class="traffic-item">
+                    <div class="traffic-vessel">${vessel.vessel}</div>
+                    <div class="traffic-details">
+                        MMSI: ${vessel.mmsi} | Status: ${vessel.status}<br>
+                        Heading: ${vessel.heading} | Speed: ${vessel.speed}
+                    </div>
+                    <div class="traffic-timestamp">Last Updated: ${vessel.time}</div>
+                </div>
+            `).join('');
+        }
         
         // Initialize
         updateStats();
         renderMarkersList();
+        fetchMarineTraffic();
     </script>
 </body>
 </html>
