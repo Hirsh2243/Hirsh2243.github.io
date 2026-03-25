@@ -564,7 +564,7 @@
         // Initialize map
         const map = L.map('map').setView([40.7128, -74.0060], 4);
         
-        // Define base layers - SIMPLE APPROACH
+        // Define base layers
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
@@ -585,18 +585,26 @@
             maxZoom: 19
         });
 
-        const seamarkLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+        // OpenSeaMap overlay (nautical features)
+        const seamarkOverlay = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
             attribution: '© OpenSeaMap contributors',
-            maxZoom: 18
+            maxZoom: 18,
+            zIndex: 100
+        });
+
+        // OSM with OpenSeaMap overlay
+        const osmWithSeamark = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
         });
 
         // Define base layers object
         const baseLayers = {
             'OpenStreetMap': osmLayer,
+            'OpenSeaMap (Nautical)': osmWithSeamark,
             'Satellite': satelliteLayer,
             'Terrain': terrainLayer,
-            'Dark Map': darkLayer,
-            'OpenSeaMap': seamarkLayer
+            'Dark Map': darkLayer
         };
 
         // Add default layer
@@ -607,6 +615,18 @@
             position: 'topleft',
             collapsed: false
         }).addTo(map);
+
+        // Handle switching to OpenSeaMap
+        map.on('baselayerchange', function(event) {
+            // Remove old overlay
+            if (map.hasLayer(seamarkOverlay)) {
+                map.removeLayer(seamarkOverlay);
+            }
+            // Add overlay when OpenSeaMap is selected
+            if (event.name === 'OpenSeaMap (Nautical)') {
+                seamarkOverlay.addTo(map);
+            }
+        });
         
         // Store all markers with custom labels
         let markers = [];
