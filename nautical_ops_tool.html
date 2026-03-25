@@ -552,9 +552,9 @@
             const trafficList = document.getElementById('trafficList');
             
             const sampleTraffic = [
-                { vessel: 'Container Ship Alpha', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 kts' },
-                { vessel: 'Fishing Vessel Beta', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 kts' },
-                { vessel: 'Tanker Charlie', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 kts' },
+                { vessel: 'Container Ship BANNANA RAMA', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 kts' },
+                { vessel: 'Fishing Vessel TEXAS PETE', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 kts' },
+                { vessel: 'Tanker WEEZE', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 kts' },
             ];
 
             trafficList.innerHTML = sampleTraffic.map((vessel) => `
@@ -594,7 +594,7 @@
                     pressure: '1013 mb'
                 },
                 { 
-                    location: 'Gulf of Mexico', 
+                    location: 'Gulf ofAmerica', 
                     condition: 'Sunny', 
                     temp: (24 + variation.tempVariation) + '°C', 
                     windSpeed: (10 + variation.windVariation) + ' knots', 
