@@ -575,6 +575,14 @@
                 maxZoom: 19,
                 name: 'OpenStreetMap'
             }),
+            'OpenSeaMap (Nautical)': L.tileLayer('https://tiles.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addLayer(L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+                attribution: '© OpenSeaMap contributors',
+                maxZoom: 18,
+                opacity: 0.8
+            })),
             'Satellite (Esri)': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                 attribution: 'Tiles &copy; Esri',
                 maxZoom: 18,
@@ -585,20 +593,20 @@
                 maxZoom: 18,
                 name: 'Terrain'
             }),
-            'Nautical (CartoDB)': L.tileLayer('https://{s}.basemaps.cartocdn.com/positron/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap contributors',
-                maxZoom: 19,
-                name: 'Nautical'
-            }),
             'Dark Map': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark/{z}/{x}/{y}{r}.png', {
                 attribution: '© OpenStreetMap contributors',
                 maxZoom: 19,
                 name: 'Dark'
+            }),
+            'NOAA Charts (US)': L.tileLayer('https://gis.charttools.noaa.gov/arcgis/rest/services/ENC/NOAAENCOnline/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'NOAA',
+                maxZoom: 16,
+                name: 'NOAA'
             })
         };
 
-        // Add default layer (OpenStreetMap)
-        baseLayers['OpenStreetMap'].addTo(map);
+        // Add default layer (OpenSeaMap - Nautical)
+        baseLayers['OpenSeaMap (Nautical)'].addTo(map);
 
         // Add layer control
         L.control.layers(baseLayers, null, {
