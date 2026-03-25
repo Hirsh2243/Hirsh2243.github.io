@@ -231,7 +231,6 @@
             border-radius: 8px;
             max-height: 250px;
             overflow-y: auto;
-            flex: 1;
         }
 
         #weather-panel h3 {
@@ -276,6 +275,108 @@
             font-style: italic;
             text-align: center;
             padding: 10px;
+        }
+
+        #log-panel {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #log-panel h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .log-input-section {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .log-input-section input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .log-input-section button {
+            padding: 8px 12px;
+            margin-top: 0;
+            font-size: 11px;
+        }
+
+        .log-table {
+            flex: 1;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .log-header {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr;
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            font-size: 11px;
+            padding: 8px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .log-header div {
+            padding: 5px;
+            text-align: left;
+        }
+
+        .log-entries {
+            flex: 1;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+
+        .log-entry {
+            display: grid;
+            grid-template-columns: 1fr 2fr 2fr;
+            border-bottom: 1px solid #eee;
+            padding: 8px;
+            font-size: 10px;
+            align-items: center;
+        }
+
+        .log-entry:hover {
+            background-color: #f0f0f0;
+        }
+
+        .log-time {
+            color: #666;
+            font-weight: bold;
+        }
+
+        .log-event {
+            color: #333;
+        }
+
+        .log-notes {
+            color: #666;
+            font-style: italic;
+        }
+
+        .no-logs {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
         }
     </style>
 </head>
@@ -353,6 +454,25 @@
                 <h3>⛅ Weather Conditions <span class="update-time" id="lastUpdate"></span></h3>
                 <div id="weatherList" class="no-weather">Loading weather data...</div>
             </div>
+
+            <div id="log-panel">
+                <h3>📋 Operations Log</h3>
+                <div class="log-input-section">
+                    <input type="text" id="log-event" placeholder="Event (e.g., Vessel Spotted, Distress Call)">
+                    <input type="text" id="log-notes" placeholder="Notes">
+                    <button onclick="addLogEntry()">Log</button>
+                </div>
+                <div class="log-table">
+                    <div class="log-header">
+                        <div>Time</div>
+                        <div>Event</div>
+                        <div>Notes</div>
+                    </div>
+                    <div class="log-entries" id="logEntries">
+                        <div class="no-logs">No log entries yet</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -374,6 +494,7 @@
         let markerIdCounter = 0;
         let trafficData = [];
         let weatherData = [];
+        let logEntries = [];
         
         // Event counters
         const events = {
@@ -552,9 +673,9 @@
             const trafficList = document.getElementById('trafficList');
             
             const sampleTraffic = [
-                { vessel: 'Container Ship BANNANA RAMA', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 kts' },
-                { vessel: 'Fishing Vessel TEXAS PETE', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 kts' },
-                { vessel: 'Tanker WEEZE', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 kts' },
+                { vessel: 'Container Ship Alpha', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 kts' },
+                { vessel: 'Fishing Vessel Beta', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 kts' },
+                { vessel: 'Tanker Charlie', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 kts' },
             ];
 
             trafficList.innerHTML = sampleTraffic.map((vessel) => `
@@ -567,7 +688,6 @@
 
         // Generate realistic weather based on region
         function generateWeatherVariation() {
-            // Add some randomness to make weather appear to change
             const variations = [
                 { tempVariation: -2, windVariation: -3 },
                 { tempVariation: 0, windVariation: 0 },
@@ -594,7 +714,7 @@
                     pressure: '1013 mb'
                 },
                 { 
-                    location: 'Gulf of America', 
+                    location: 'Gulf of Mexico', 
                     condition: 'Sunny', 
                     temp: (24 + variation.tempVariation) + '°C', 
                     windSpeed: (10 + variation.windVariation) + ' knots', 
@@ -631,6 +751,67 @@
             document.getElementById('lastUpdate').textContent = `Updated: ${now.toLocaleTimeString()}`;
         }
 
+        // Add log entry
+        function addLogEntry() {
+            const eventInput = document.getElementById('log-event').value;
+            const notesInput = document.getElementById('log-notes').value;
+
+            if (!eventInput.trim()) {
+                alert('Please enter an event');
+                return;
+            }
+
+            const now = new Date();
+            const timeString = now.toLocaleTimeString();
+
+            logEntries.unshift({
+                time: timeString,
+                event: eventInput,
+                notes: notesInput || '-'
+            });
+
+            // Clear inputs
+            document.getElementById('log-event').value = '';
+            document.getElementById('log-notes').value = '';
+
+            renderLogEntries();
+        }
+
+        // Render log entries
+        function renderLogEntries() {
+            const logEntriesContainer = document.getElementById('logEntries');
+
+            if (logEntries.length === 0) {
+                logEntriesContainer.innerHTML = '<div class="no-logs">No log entries yet</div>';
+                return;
+            }
+
+            logEntriesContainer.innerHTML = logEntries.map((entry) => `
+                <div class="log-entry">
+                    <div class="log-time">${entry.time}</div>
+                    <div class="log-event">${entry.event}</div>
+                    <div class="log-notes">${entry.notes}</div>
+                </div>
+            `).join('');
+        }
+
+        // Allow Enter key to add log entry
+        document.addEventListener('DOMContentLoaded', function() {
+            const logEventInput = document.getElementById('log-event');
+            const logNotesInput = document.getElementById('log-notes');
+            
+            if (logEventInput) {
+                logEventInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') addLogEntry();
+                });
+            }
+            if (logNotesInput) {
+                logNotesInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') addLogEntry();
+                });
+            }
+        });
+
         // Auto-refresh weather every hour (3600000 ms)
         function setupWeatherAutoRefresh() {
             fetchWeather(); // Initial load
@@ -642,6 +823,7 @@
         renderMarkersList();
         fetchMarineTraffic();
         setupWeatherAutoRefresh();
+        renderLogEntries();
     </script>
 </body>
 </html>
