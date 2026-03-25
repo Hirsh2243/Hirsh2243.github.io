@@ -31,6 +31,35 @@
             flex: 2;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            position: relative;
+        }
+
+        /* Layer control styling */
+        .leaflet-control-layers {
+            background-color: #fff !important;
+            border-radius: 8px !important;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1) !important;
+        }
+
+        .leaflet-control-layers-toggle {
+            width: 36px !important;
+            height: 36px !important;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><g><path d="M5 5h14M5 12h14M5 19h14"/></g></svg>') !important;
+            background-size: 20px 20px !important;
+            background-repeat: no-repeat !important;
+            background-position: center !important;
+        }
+
+        .leaflet-control-layers label {
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .leaflet-control-layers input {
+            margin-right: 8px;
+            cursor: pointer;
         }
         
         .right-panel {
@@ -539,10 +568,42 @@
         // Initialize map
         const map = L.map('map').setView([40.7128, -74.0060], 4);
         
-        // Add map tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
+        // Define multiple base layers
+        const baseLayers = {
+            'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+                name: 'OpenStreetMap'
+            }),
+            'Satellite (Esri)': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 18,
+                name: 'Satellite'
+            }),
+            'Terrain (Stamen)': L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                maxZoom: 18,
+                name: 'Terrain'
+            }),
+            'Nautical (CartoDB)': L.tileLayer('https://{s}.basemaps.cartocdn.com/positron/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+                name: 'Nautical'
+            }),
+            'Dark Map': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark/{z}/{x}/{y}{r}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19,
+                name: 'Dark'
+            })
+        };
+
+        // Add default layer (OpenStreetMap)
+        baseLayers['OpenStreetMap'].addTo(map);
+
+        // Add layer control
+        L.control.layers(baseLayers, null, {
+            position: 'topleft',
+            collapsed: true
         }).addTo(map);
         
         // Store all markers with custom labels
