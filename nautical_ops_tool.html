@@ -171,9 +171,8 @@
             border: 1px solid #ddd;
             box-shadow: 0 0 10px rgba(0,0,0,0.1);
             border-radius: 8px;
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
-            flex: 1;
         }
 
         #marine-traffic h3 {
@@ -183,12 +182,12 @@
         }
 
         .traffic-item {
-            padding: 10px;
-            margin-bottom: 8px;
+            padding: 8px;
+            margin-bottom: 6px;
             background-color: #f0f8ff;
             border-left: 3px solid #2196F3;
             border-radius: 4px;
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .traffic-vessel {
@@ -198,36 +197,79 @@
 
         .traffic-details {
             color: #666;
-            font-size: 10px;
-            margin-top: 3px;
-        }
-
-        .traffic-timestamp {
-            color: #999;
             font-size: 9px;
-            margin-top: 3px;
+            margin-top: 2px;
         }
 
         .no-traffic {
             color: #999;
             font-style: italic;
             text-align: center;
-            padding: 20px 10px;
+            padding: 10px;
         }
 
         .external-link {
             display: inline-block;
-            padding: 8px 12px;
+            padding: 6px 10px;
             background-color: #2196F3;
             color: white;
             border-radius: 4px;
             text-decoration: none;
-            font-size: 11px;
-            margin-top: 10px;
+            font-size: 10px;
+            margin-top: 8px;
         }
 
         .external-link:hover {
             background-color: #0b7dda;
+        }
+
+        #weather-panel {
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        #weather-panel h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .weather-item {
+            padding: 10px;
+            margin-bottom: 8px;
+            background-color: #fff8e1;
+            border-left: 3px solid #FFC107;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+
+        .weather-location {
+            font-weight: bold;
+            color: #FF6F00;
+        }
+
+        .weather-details {
+            color: #666;
+            font-size: 10px;
+            margin-top: 3px;
+        }
+
+        .weather-icon {
+            font-size: 20px;
+            margin-right: 5px;
+        }
+
+        .no-weather {
+            color: #999;
+            font-style: italic;
+            text-align: center;
+            padding: 10px;
         }
     </style>
 </head>
@@ -298,7 +340,12 @@
             <div id="marine-traffic">
                 <h3>🚢 Marine Traffic Feed</h3>
                 <div id="trafficList" class="no-traffic">Loading marine traffic data...</div>
-                <a href="https://www.marinetraffic.com/en/ais/home/centerx:-12.0/centery:25.0/zoom:4" target="_blank" class="external-link">📡 View on MarineTraffic.com</a>
+                <a href="https://www.marinetraffic.com/en/ais/home/centerx:-12.0/centery:25.0/zoom:4" target="_blank" class="external-link">📡 View on MarineTraffic</a>
+            </div>
+
+            <div id="weather-panel">
+                <h3>⛅ Weather Conditions</h3>
+                <div id="weatherList" class="no-weather">Loading weather data...</div>
             </div>
         </div>
     </div>
@@ -320,6 +367,7 @@
         let markers = [];
         let markerIdCounter = 0;
         let trafficData = [];
+        let weatherData = [];
         
         // Event counters
         const events = {
@@ -333,7 +381,7 @@
             distress: L.divIcon({ className: 'distress-marker', html: '🚨', iconSize: [32, 32] }),
             fire: L.divIcon({ className: 'fire-marker', html: '🔥', iconSize: [32, 32] }),
             water: L.divIcon({ className: 'water-marker', html: '💧', iconSize: [32, 32] }),
-            training: L.divIcon({ className: 'training-marker', html: '📚', iconSize: [32, 32] })
+            training: L.divIcon({ className: 'training-marker', html: '���', iconSize: [32, 32] })
         };
         
         // Parse multiple GPS coordinate formats
@@ -493,26 +541,42 @@
             document.getElementById('trainingCount').textContent = events.training;
         }
 
-        // Fetch AIS data from public API
+        // Fetch AIS data
         function fetchMarineTraffic() {
             const trafficList = document.getElementById('trafficList');
             
-            // Sample traffic data to display
             const sampleTraffic = [
-                { vessel: 'Container Ship Alpha', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 knots', time: new Date().toLocaleTimeString() },
-                { vessel: 'Fishing Vessel Beta', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 knots', time: new Date().toLocaleTimeString() },
-                { vessel: 'Tanker Charlie', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 knots', time: new Date().toLocaleTimeString() },
-                { vessel: 'General Cargo Delta', mmsi: '789123456', status: 'At Anchor', heading: '---', speed: '0.0 knots', time: new Date().toLocaleTimeString() },
+                { vessel: 'Container Ship Alpha', mmsi: '123456789', status: 'Underway', heading: '045°', speed: '15.2 kts' },
+                { vessel: 'Fishing Vessel Beta', mmsi: '987654321', status: 'Fishing', heading: '180°', speed: '8.5 kts' },
+                { vessel: 'Tanker Charlie', mmsi: '456789123', status: 'Underway', heading: '270°', speed: '12.0 kts' },
             ];
 
-            trafficList.innerHTML = sampleTraffic.map((vessel, index) => `
+            trafficList.innerHTML = sampleTraffic.map((vessel) => `
                 <div class="traffic-item">
                     <div class="traffic-vessel">${vessel.vessel}</div>
-                    <div class="traffic-details">
-                        MMSI: ${vessel.mmsi} | Status: ${vessel.status}<br>
-                        Heading: ${vessel.heading} | Speed: ${vessel.speed}
+                    <div class="traffic-details">MMSI: ${vessel.mmsi} | ${vessel.status}<br>${vessel.heading} | ${vessel.speed}</div>
+                </div>
+            `).join('');
+        }
+
+        // Fetch Weather data
+        function fetchWeather() {
+            const weatherList = document.getElementById('weatherList');
+            
+            const sampleWeather = [
+                { location: 'Atlantic Region', condition: 'Partly Cloudy', temp: '18°C', windSpeed: '12 knots', windDir: 'NW', visibility: '10 km', waveHeight: '1.5 m' },
+                { location: 'North Sea', condition: 'Rainy', temp: '15°C', windSpeed: '18 knots', windDir: 'N', visibility: '5 km', waveHeight: '2.5 m' },
+                { location: 'Mediterranean', condition: 'Sunny', temp: '22°C', windSpeed: '8 knots', windDir: 'SE', visibility: '15 km', waveHeight: '0.8 m' },
+            ];
+
+            weatherList.innerHTML = sampleWeather.map((weather) => `
+                <div class="weather-item">
+                    <div class="weather-location">${weather.location}</div>
+                    <div class="weather-details">
+                        🌡️ ${weather.temp} | 💨 ${weather.windSpeed} ${weather.windDir}<br>
+                        👁️ Visibility: ${weather.visibility} | 🌊 Waves: ${weather.waveHeight}<br>
+                        Condition: ${weather.condition}
                     </div>
-                    <div class="traffic-timestamp">Last Updated: ${vessel.time}</div>
                 </div>
             `).join('');
         }
@@ -521,6 +585,7 @@
         updateStats();
         renderMarkersList();
         fetchMarineTraffic();
+        fetchWeather();
     </script>
 </body>
 </html>
