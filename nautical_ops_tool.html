@@ -55,6 +55,16 @@
             color: #333;
         }
         
+        .format-info {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 10px;
+            background-color: #f5f5f5;
+            padding: 8px;
+            border-left: 3px solid #4CAF50;
+            border-radius: 3px;
+        }
+        
         .coordinate-input {
             margin: 12px 0;
             display: flex;
@@ -147,17 +157,22 @@
         <div class="right-panel">
             <div id="operations-panel">
                 <h2>Input Maritime Event Coordinates</h2>
+                <div class="format-info">
+                    <strong>Accepted Formats:</strong><br>
+                    • DD.DDDD: 40.7128, -74.0060<br>
+                    • DD MM.MMM': 40 42.768', -74 0.360'<br>
+                    • DD MM'SS.S": 40 42' 46.08", -74 0' 21.6"
+                </div>
                 <div class="coordinate-input">
                     <label for="distress">Distress Coordinates:</label>
                     <input type="text" id="distress" placeholder="e.g., 40.7128, -74.0060">
                 </div>
                 <div class="coordinate-input">
                     <label for="fire">Fire Coordinates:</label>
-                    <input type="text" id="fire" placeholder="e.g., 40.7128, -74.0060">
-                </div>
+                    <input type="text" id="fire" placeholder="e.g., 40 42.768', -74 0.360'"></div>
                 <div class="coordinate-input">
                     <label for="water">Water Coordinates:</label>
-                    <input type="text" id="water" placeholder="e.g., 40.7128, -74.0060">
+                    <input type="text" id="water" placeholder="e.g., 40 42' 46.08\", -74 0' 21.6\">
                 </div>
                 <div class="coordinate-input">
                     <label for="training">Training Coordinates:</label>
@@ -230,6 +245,63 @@
         
         let chart = null;
         
+        /**
+         * Parse coordinate string in multiple formats
+         * Supports:
+         *  - DD.DDDD (decimal degrees): 40.7128, -74.0060
+         *  - DD MM.MMM' (degrees and decimal minutes): 40 42.768', -74 0.360'
+         *  - DD MM'SS.S" (degrees, minutes, seconds): 40 42' 46.08", -74 0' 21.6"
+         */
+        function parseCoordinate(coordString) {
+            const parts = coordString.split(',').map(p => p.trim());
+            if (parts.length !== 2) {
+                throw new Error('Expected two coordinates separated by comma');
+            }
+            
+            const lat = parseCoordinateValue(parts[0]);
+            const lng = parseCoordinateValue(parts[1]);
+            
+            return [lat, lng];
+        }
+        
+        function parseCoordinateValue(value) {
+            value = value.trim();
+            
+            // Format 1: DD.DDDD (decimal degrees)
+            if (/^-?\d+\.?\d*$/.test(value)) {
+                const decimal = parseFloat(value);
+                if (isNaN(decimal)) throw new Error(`Invalid decimal degrees: ${value}`);
+                return decimal;
+            }
+            
+            // Format 2: DD MM.MMM' (degrees and decimal minutes)
+            const dmsDecimalMatch = value.match(/^(-?)(\d+)\s+([\d.]+)'$/);
+            if (dmsDecimalMatch) {
+                const sign = dmsDecimalMatch[1] === '-' ? -1 : 1;
+                const degrees = parseInt(dmsDecimalMatch[2]);
+                const decimalMinutes = parseFloat(dmsDecimalMatch[3]);
+                
+                if (isNaN(decimalMinutes)) throw new Error(`Invalid decimal minutes: ${value}`);
+                
+                return sign * (degrees + decimalMinutes / 60);
+            }
+            
+            // Format 3: DD MM'SS.S" (degrees, minutes, seconds)
+            const dmsMatch = value.match(/^(-?)(\d+)\s+(\d+)'\s+([\d.]+)"$/);
+            if (dmsMatch) {
+                const sign = dmsMatch[1] === '-' ? -1 : 1;
+                const degrees = parseInt(dmsMatch[2]);
+                const minutes = parseInt(dmsMatch[3]);
+                const seconds = parseFloat(dmsMatch[4]);
+                
+                if (isNaN(seconds)) throw new Error(`Invalid seconds: ${value}`);
+                
+                return sign * (degrees + minutes / 60 + seconds / 3600);
+            }
+            
+            throw new Error(`Could not parse coordinate: ${value}`);
+        }
+        
         function createMarker() {
             const distressCoords = document.getElementById('distress').value;
             const fireCoords = document.getElementById('fire').value;
@@ -263,17 +335,23 @@
         
         function addMarker(coordString, type, label) {
             try {
-                const [lat, lng] = coordString.split(',').map(c => parseFloat(c.trim()));
+                const [lat, lng] = parseCoordinate(coordString);
                 
                 if (isNaN(lat) || isNaN(lng)) {
-                    alert('Invalid coordinates. Please use format: latitude, longitude');
+                    alert('Invalid coordinates.');
+                    return;
+                }
+                
+                // Validate coordinate ranges
+                if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+                    alert('Coordinates out of range. Latitude must be -90 to 90, Longitude must be -180 to 180.');
                     return;
                 }
                 
                 const marker = L.marker([lat, lng], { 
                     icon: markerIcons[type],
                     title: label
-                }).addTo(map).bindPopup(`<b>${label}</b><br>Lat: ${lat}<br>Lng: ${lng}`);
+                }).addTo(map).bindPopup(`<b>${label}</b><br>Lat: ${lat.toFixed(4)}<br>Lng: ${lng.toFixed(4)}`);
                 
                 events[type].push({ lat, lng, marker });
                 console.log(`${label} marker created at:`, lat, lng);
