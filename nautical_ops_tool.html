@@ -564,7 +564,7 @@
         // Initialize map
         const map = L.map('map').setView([40.7128, -74.0060], 4);
         
-        // Define base layer
+        // Define base layers
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
@@ -575,9 +575,9 @@
             maxZoom: 18
         });
 
-        const terrainLayer = L.tileLayer('https://tiles.stadiamaps.com/tiles/stamen_terrain/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors',
-            maxZoom: 18
+        const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+            maxZoom: 17,
+            attribution: 'Map data: &copy; OpenStreetMap contributors, SRTM | Map style: &copy; OpenTopoMap'
         });
 
         const darkLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark/{z}/{x}/{y}{r}.png', {
@@ -585,28 +585,23 @@
             maxZoom: 19
         });
 
-        const noaaLayer = L.tileLayer('https://gis.charttools.noaa.gov/arcgis/rest/services/ENC/NOAAENCOnline/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'NOAA',
-            maxZoom: 16
-        });
-
         // OpenSeaMap (Nautical overlay - separate)
-        const seaMapLayer = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
+        const seaMapOverlay = L.tileLayer('https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png', {
             attribution: '© OpenSeaMap contributors',
-            maxZoom: 18
+            maxZoom: 18,
+            opacity: 0.8
         });
 
         // Create layer group for OpenSeaMap with OSM base
-        const openSeaMapGroup = L.layerGroup([osmLayer, seaMapLayer]);
+        const openSeaMapGroup = L.layerGroup([osmLayer.clone(), seaMapOverlay]);
 
         // Define base layers object
         const baseLayers = {
             'OpenStreetMap': osmLayer,
-            'OpenSeaMap + OSM': openSeaMapGroup,
+            'OpenSeaMap (Nautical)': openSeaMapGroup,
             'Satellite': satelliteLayer,
-            'Terrain': terrainLayer,
-            'Dark Map': darkLayer,
-            'NOAA Charts (US)': noaaLayer
+            'Topographic': topoLayer,
+            'Dark Map': darkLayer
         };
 
         // Add default layer
